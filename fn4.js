@@ -1,7 +1,7 @@
 function fn4(arr) {
   let maxNum = 0;
   for (let i = 0; i < arr.length; i++) {
-    if (!maxNum) {
+    if (maxNum === 0) {
       maxNum = arr[i].length;
     }
     if (maxNum < arr[i].length) {
@@ -9,8 +9,13 @@ function fn4(arr) {
     }
   }
 
-  let result = arr.filter((arr) => arr.length === maxNum);
-  return result;
+  let result = arr.filter((arr) => arr.length === maxNum)[0];
+  sumResult = 0;
+  for (let j = 0; j < result.length; j++) {
+    sumResult += result[j];
+  }
+
+  return sumResult;
 }
 
 A = [

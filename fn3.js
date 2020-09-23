@@ -1,11 +1,11 @@
 function fn3(arr) {
-  let A = [];
+  let ageOld = [];
   for (let i = 0; i < arr.length; i++) {
     if (arr[i].age > 30) {
-      A.push(arr[i].name);
+      ageOld.push(arr[i].name);
     }
   }
-  return A;
+  return ageOld;
 }
 
 arr = [
@@ -14,5 +14,4 @@ arr = [
   { name: "blue", age: 50 },
 ];
 
-let result = fn3(arr);
-console.log(result);
+console.log(fn3(arr));
