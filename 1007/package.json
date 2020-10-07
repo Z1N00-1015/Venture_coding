@@ -1,7 +1,6 @@
 {
   "name": "1007",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -16,5 +15,6 @@
   "devDependencies": {
     "eslint": "^7.10.0",
     "eslint-config-google": "^0.14.0"
-  }
+  },
+  "description": ""
 }
