@@ -32,21 +32,25 @@ app.post('/signup', [
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
-
+    const {email, name, password} = req.body
     if (await User.findOne({email})) {
-        return res.status(400).json({ errors: "Email Alreday Used" });
+        return res.status(400).json({ email: "Email Alreday Used" });
     }
-
-  const {email, name, password} = req.body
   const user = new User ({email, name, password})
   await user.save
-  res.send(200)
+  res.sendStatus(200)
 });
 
 
 //signin : 로그인 명령이 오면 valid한지 check한 후에, key를 발급
 
-app.post('/signin', async(req, res, next) => {
+app.post('/signin', async(req, res) => {
+    const {email, password} = req.body;
+    const user = User.findOne({
+        email,
+        password
+    })
+    if(!user) return res.sendStatus(400)
 
 
 })
