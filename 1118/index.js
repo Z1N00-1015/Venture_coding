@@ -50,8 +50,7 @@ app.post('/signin', async(req, res) => {
         email,
         password
     })
-    if(!user) return res.sendStatus(400)
-
+    if(!user) return res.sendStatus(400);
 
 })
 
