@@ -1,13 +1,10 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
-const member = mongoose.model("member", {
-  name: String,
-  email: String,
-  password: String,
+const keys = mongoose.model("keys", {
   key: String,
 });
 
 module.exports = {
-  member
+  keys
 };

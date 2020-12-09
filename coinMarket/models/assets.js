@@ -14,7 +14,7 @@ const assets = mongoose.model("assets", {
     eth: {type: Number,
         default: 0},
     member: { type: mongoose.Schema.Types.ObjectId,
-    ref: "member" }
+    ref: "User" }
 });
 
 module.exports = {
