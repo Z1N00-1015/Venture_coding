@@ -3,6 +3,9 @@ const { encryptPassword } = require("./utils");
 const { body, validationResult } = require("express-validator");
 const mongoose = require("mongoose");
 const crypto = require("crypto");
+const fetch = require('node-fetch');
+const CoinGecko = require('coingecko-api');
+
 
 const app = express();
 
@@ -21,12 +24,12 @@ const authentication = async (req, res, next) => {
   if (bearer !== "Bearer") return res.sendStatus(401);
 };
 
+
 app.get('/', async (req, res, next) => {
     res.send("Hello World");
   });
 
-app.post(
-  "/register",
+app.post( "/register",
   [
     body("name").isLength({ min: 4, max: 12 }),
     body("email").isEmail(),
@@ -68,7 +71,10 @@ app.post("/login", async (req, res) => {
 });
 
 app.get("/coins",  async (req, res, next) => {
-    res.send(["btc", "xrp", "bch", "eth"]);
+
+  fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin%2CEthereum%2Cripple%2Cbitcoin-cash&vs_currencies=usd')
+    .then(res => res.json())
+    .then(json => res.send(json));
   });
 
 
@@ -77,7 +83,10 @@ app.get("/coins",  async (req, res, next) => {
 app.get("/assets", authentication, async(req, res) => {
     const Member = req.Member
     await res.send({assets})
-}
-)
+})
+
+
+
+
 
 app.listen(3000);
