@@ -11,9 +11,8 @@ const jwt = require('jsonwebtoken');
 const app = express();
 
 const { User } = require("./models/user");
-const { assets } = require("./models/assets");
-const { coins } = require("./models/coins");
-const { keys } = require("./models/keys.js")
+const { Assets } = require("./models/assets");
+const { Coins } = require("./models/coins");
 
 mongoose.connect('mongodb+srv://zinoo:scot1015@cluster0.bzrdg.mongodb.net/Coinmarket?retryWrites=true&w=majority', {useNewUrlParser: true, useUnifiedTopology: true});
 
@@ -24,12 +23,24 @@ const authentication = async (req, res, next) => {
   const { authorization } = req.headers;
   if (!authorization) return res.sendStatus(401);
   const [bearer, key] = authorization.split(" ");
-  if (bearer !== "Bearer") return res.sendStatus(401);
+  if (bearer !== 'Bearer') return res.sendStatus(401);
   const user = await User.findOne({ key });
   if (!user) return res.sendStatus(401);
   req.user = user;
   next();
 };
+
+const assetsAuthentication = async (req, res, next) => {
+  const id = req.params.id;
+  const asset = await Assets.findbyId(id);
+  if (!asset) return res.sendStatus(404)
+  if (!asset.user.equals(req.user._id)) return res.sendStatus(401);
+
+  req.asset = asset;
+  next()
+
+}
+
 
 
 app.get('/', async (req, res, next) => {
@@ -59,8 +70,8 @@ app.post( "/register",
     const user = new User({ email, name, password: encryptedPassword });
     await user.save();
 
-    const coin = await coins.findOne({ code: "usd" });
-    const asset = new assets({ user, coin, quantity: 100000 });
+    const coin = await Coins.findOne({ code: "usd" });
+    const asset = new Assets({ user });
     await asset.save();
 
     return res.sendStatus(200);
@@ -79,6 +90,7 @@ app.post("/login", async (req, res) => {
     
     const key = crypto.randomBytes(24).toString("hex");
     user.key = key;
+    await user.save();
     res.send({ key });
 });
 
@@ -93,8 +105,10 @@ app.get("/coins",  async (req, res, next) => {
 
 
 app.get("/assets", authentication, async(req, res) => {
-  const coins = await coins.find();
-  res.send(coins);
+  console.log(req.user._id)
+  const assets = await Assets.find({user: req.user});
+  console.log(assets)
+  res.send(assets);
 })
 
 

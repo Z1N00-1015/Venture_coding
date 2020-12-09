@@ -8,6 +8,12 @@ const User = mongoose.model("User", {
   key: String,
 });
 
+
+const Key = mongoose.model("key", {
+  key: String,
+  user: { type: mongoose.Schema.Types.ObjectId,
+    ref: "User" }
+})
 module.exports = {
   User
 };

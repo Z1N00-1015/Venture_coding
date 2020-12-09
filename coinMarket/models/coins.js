@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
-const coins = mongoose.model("coins", {
+const Coins = mongoose.model("Coins", {
 
     btc: {type: String,
         default: "bitcoin"},
@@ -15,5 +15,5 @@ const coins = mongoose.model("coins", {
 })
 
 module.exports = {
-    coins
+    Coins
   };
