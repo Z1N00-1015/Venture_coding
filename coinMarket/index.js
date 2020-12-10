@@ -93,7 +93,7 @@ app.get("/coins",  async (req, res, next) => {
 
 
 app.get("/assets", authentication, async(req, res) => {
-  const coins = await coins.find();
+  const coins = await coins.find({user: req.user});
   res.send(coins);
 })
 
