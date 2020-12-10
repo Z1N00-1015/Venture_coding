@@ -12,12 +12,20 @@ const app = express();
 
 const { User } = require("./models/user");
 const { Assets } = require("./models/assets");
-const { Coins } = require("./models/coins");
+const { Coin } = require("./models/coins");
 
-mongoose.connect('mongodb+srv://zinoo:scot1015@cluster0.bzrdg.mongodb.net/Coinmarket?retryWrites=true&w=majority', {useNewUrlParser: true, useUnifiedTopology: true});
+mongoose.connect('mongodb+srv://zinoo:scot1015@cluster0.bzrdg.mongodb.net/Coinmarket?retryWrites=true&w=majority', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  useFindAndModify: false,
+  useCreateIndex: true,
+});
 
 
 app.use(express.urlencoded({ extended: true }));
+
+
+
 
 const authentication = async (req, res, next) => {
   const { authorization } = req.headers;
@@ -32,15 +40,41 @@ const authentication = async (req, res, next) => {
 
 const assetsAuthentication = async (req, res, next) => {
   const id = req.params.id;
-  const asset = await Assets.findbyId(id);
+  const asset = await Assets.findById(id);
   if (!asset) return res.sendStatus(404)
   if (!asset.user.equals(req.user._id)) return res.sendStatus(401);
 
   req.asset = asset;
+  
   next()
 
 }
 
+
+
+
+/* 초기 coin 모델 만들기
+async function saveCoin() {
+const btc = new Coin({name: 'btc'})
+const eth = new Coin({name: 'eth'})
+const bth = new Coin({name: 'bth'})
+const xrp = new Coin({name: 'xrp'})
+const usd = new Coin({name: 'usd'})
+await btc.save()
+await eth.save()
+await xrp.save()
+await bth.save()
+await usd.save()
+}
+
+
+(async () => {
+  try{
+    await saveCoin()
+  }catch(err){console.log(err)
+  }})()
+
+*/
 
 
 app.get('/', async (req, res, next) => {
@@ -69,12 +103,11 @@ app.post( "/register",
     const encryptedPassword = encryptPassword(password);
     const user = new User({ email, name, password: encryptedPassword });
     await user.save();
-
-    const coin = await Coins.findOne({ code: "usd" });
-    const asset = new Assets({ user });
+    const coin = await Coin.findOne({ name: "usd" });
+    const asset = new Assets ({ user, coin, quantity: 100000 });
     await asset.save();
-
-    return res.sendStatus(200);
+    console.log(asset)
+    res.sendStatus(200);
 });
 
 
@@ -102,12 +135,53 @@ app.get("/coins",  async (req, res, next) => {
   });
 
 
+app.get(`/coins/:id`, async(req, res) => {
+  const coinName = await req.params.id
+  const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinName}&vs_currencies=usd`)
+  const coinInfo = await response.json()
+  const price = await coinInfo[coinName]['usd']
+
+  const btc = Coins.findOne({name: 'btc'})
+  console.log(btc)
+
+  res.send(`[${coinName}: ${price}]`)
+  })
+  
+
+
+  app.post(`/coins/:id/buy`, authentication, async(req, res) => {
+    const myAssets = await Assets.findOne({user: req.user});
+    console.log(myAssets.coin)
+    const { quantity } = req.body
+    const coinName = req.params.id
+    const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinName}&vs_currencies=usd`)
+    const coinInfo = await response.json()
+    const price = await coinInfo[coinName]['usd']
+
+    if(myAssets['usd']<=price * quantity){
+      return res.status(400).json({ errors: { Assets: "Not enough Money" } });
+      
+    } else {
+      
+      const USD = myAssets['usd'] - price * quantity
+
+      await Assets.findOneAndUpdate({user: req.user}, {"usd": USD, "btc": 1})
+      
+      const result = {
+        "price": price,
+        "quantity": quantity
+      }
+
+     return res.send(result)
+    }
+    })
+
+
 
 
 app.get("/assets", authentication, async(req, res) => {
-  console.log(req.user._id)
-  const assets = await Assets.find({user: req.user});
-  console.log(assets)
+  const assets = await Assets.findOne({user: req.user});
+  const coinNum = Object.keys(assets).length
   res.send(assets);
 })
 
