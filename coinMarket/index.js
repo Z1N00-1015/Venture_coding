@@ -13,6 +13,7 @@ const app = express();
 const { User } = require("./models/user");
 const { Assets } = require("./models/assets");
 const { Coin } = require("./models/coins");
+const { isNumber } = require("util");
 
 mongoose.connect('mongodb+srv://zinoo:scot1015@cluster0.bzrdg.mongodb.net/Coinmarket?retryWrites=true&w=majority', {
   useNewUrlParser: true,
@@ -53,18 +54,23 @@ const assetsAuthentication = async (req, res, next) => {
 
 
 
-/* 초기 coin 모델 만들기
+//초기 coin 모델 만들기
+/*
 async function saveCoin() {
-const btc = new Coin({name: 'btc'})
-const eth = new Coin({name: 'eth'})
-const bth = new Coin({name: 'bth'})
-const xrp = new Coin({name: 'xrp'})
-const usd = new Coin({name: 'usd'})
+const btc = new Coin({symbol: 'btc', name: 'bitcoin'})
+const eth = new Coin({symbol: 'eth', name: 'ethereum'})
+const bth = new Coin({symbol: 'bth', name: 'bitcoin-cash'})
+const xrp = new Coin({symbol: 'xrp', name: 'ripple'})
+const usd = new Coin({symbol: 'usd', name: 'dollar'})
+const ada = new Coin({symbol: 'ada', name: 'cardano'})
+const xlm = new Coin({symbol: 'xlm', name: 'stellar'})
 await btc.save()
 await eth.save()
 await xrp.save()
 await bth.save()
 await usd.save()
+await xlm.save()
+await ada.save()
 }
 
 
@@ -73,8 +79,8 @@ await usd.save()
     await saveCoin()
   }catch(err){console.log(err)
   }})()
-
 */
+
 
 
 app.get('/', async (req, res, next) => {
@@ -103,10 +109,20 @@ app.post( "/register",
     const encryptedPassword = encryptPassword(password);
     const user = new User({ email, name, password: encryptedPassword });
     await user.save();
-    const coin = await Coin.findOne({ name: "usd" });
-    const asset = new Assets ({ user, coin, quantity: 100000 });
+    const coin = await Coin.find({ active: 1 });
+    let quantity = {}
+    let keys = []
+    for (let i=0; i<=Object.values(coin).length-1; i++){
+      keys.push(Object.values(coin)[i].name)
+    }
+    for(let i =0; i<=keys.length-1; i++){
+      quantity[keys[i]] = 0
+      if(keys[i] = 'usd') {quantity[keys[i]] = 10000}
+    }
+    console.log(quantity)
+
+    const asset = new Assets ({ user, coin, quantity});
     await asset.save();
-    console.log(asset)
     res.sendStatus(200);
 });
 
@@ -119,7 +135,7 @@ app.post("/login", async (req, res) => {
         password: encryptPassword(password)
     });
     
-    if (!user) return res.sendStatus(404);
+    if (!user) return res.sendStatus(404).json({ errors: { email: "Wrong ID or Password" } });
     
     const key = crypto.randomBytes(24).toString("hex");
     user.key = key;
@@ -138,51 +154,252 @@ app.get("/coins",  async (req, res, next) => {
 app.get(`/coins/:id`, async(req, res) => {
   const coinName = await req.params.id
   const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinName}&vs_currencies=usd`)
-  const coinInfo = await response.json()
+  const coinInfo = await response.json()  
+
+  if(await Object.keys(coinInfo).length === 0 ) {
+
+    return res.status(400).json({error: { Coin : "그런 코인은 존재하지 않습니다." }})
+  
+  } else {
+
+
   const price = await coinInfo[coinName]['usd']
 
-  const btc = Coins.findOne({name: 'btc'})
-  console.log(btc)
 
-  res.send(`[${coinName}: ${price}]`)
+  res.send(`[Price of ${coinName}: ${price} USD]`)
+  }
   })
   
 
 
+
+
+
   app.post(`/coins/:id/buy`, authentication, async(req, res) => {
+
+
+    //지갑을 찾음
     const myAssets = await Assets.findOne({user: req.user});
-    console.log(myAssets.coin)
-    const { quantity } = req.body
-    const coinName = req.params.id
+
+    //수량 확인
+    let { quantity } = await req.body
+    quantity = await parseFloat(quantity)
+    quantity = await quantity.toFixed(3)
+    quantity = await Number(quantity)
+    //코인 이름 및 가격 확인
+
+    const keys = await Coin.find({active: 1})
+    let allCoins = []
+
+    for (let i=0; i<=Object.values(keys).length-1; i++){
+      allCoins.push(Object.values(keys)[i].name)
+    }
+
+    const coinName = await req.params.id
     const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinName}&vs_currencies=usd`)
     const coinInfo = await response.json()
-    const price = await coinInfo[coinName]['usd']
+  
+    //존재하는 코인인지 확인
+    if(await Object.keys(coinInfo).length === 0 ) {
 
-    if(myAssets['usd']<=price * quantity){
-      return res.status(400).json({ errors: { Assets: "Not enough Money" } });
-      
+      return res.status(400).json({error: { Coin : "그런 코인은 존재하지 않습니다." }})
+    
     } else {
-      
-      const USD = myAssets['usd'] - price * quantity
 
-      await Assets.findOneAndUpdate({user: req.user}, {"usd": USD, "btc": 1})
+
+      //이 거래소에서 거래할 수 있는 코인인지 확인
+
+
+      const keys = await Coin.find({active: 1})
+      let allCoins = []
+      for (let i=0; i<=Object.values(keys).length-1; i++){
+        allCoins.push(Object.values(keys)[i].name)
+      }
+
+
+      //Coin Model에 포함되지 않는 경우 거래할 수 없음
+
+
+      if( await allCoins.includes(`${coinName}`) === false ) {
+      return res.status(400).json({error: { Buy : "이 거래소는 스캠코인을 취급하지 않습니다." }})
+      } else {
+
+        // 구매 가능한 코인인 경우
+
+
+        const price = await coinInfo[coinName]['usd']
+        
+
+        //돈이 부족하면 살 수 없음
+      if(myAssets.quantity['usd'] <= price * quantity){
+      return res.status(400).json({ errors: { Assets: "Not enough Money" } });       
+      } else {
+
+        //돈이 충분하면 구입 후 계좌에 저장
+
+  
+        async function coinBuy() {
+          const getCoin = await Coin.findOne({name: coinName})
+          const coinFullName = getCoin.name
+          const USD = await myAssets.quantity['usd'] - price * quantity
+          myAssets.quantity['usd'] = USD
+          myAssets.quantity[coinFullName] += quantity
+          await myAssets.markModified('quantity');
+          await console.log(myAssets.quantity)
+          await myAssets.save(); 
+        }
+        
+        await coinBuy()
+  
+        const result = await {
+          "price": price,
+          "quantity": quantity
+        }
+        return res.send(result)
+      }
       
-      const result = {
+      }
+    }
+})
+
+
+
+app.post(`/coins/:id/sell`, authentication, async(req, res) => {
+
+
+  //지갑을 찾음
+  const myAssets = await Assets.findOne({user: req.user});
+
+
+  //수량 확인
+
+  let { quantity } = await req.body
+  quantity = await parseFloat(quantity)
+  quantity = await quantity.toFixed(3)
+  quantity = await Number(quantity)
+
+  if(await isNaN(quantity) === false) {
+
+    if(quantity <= 0) {
+      return res.status(400).json({error: { Quantity : "올바른 수량을 입력하여 주십시오." }})
+    } else {
+
+
+  //코인 이름 및 가격 확인
+
+  const keys = await Coin.find({active: 1})
+  let allCoins = []
+
+  for (let i=0; i<=Object.values(keys).length-1; i++){
+    allCoins.push(Object.values(keys)[i].name)
+  }
+
+  const coinName = await req.params.id
+  const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinName}&vs_currencies=usd`)
+  const coinInfo = await response.json()
+
+  //존재하는 코인인지 확인
+  if(await Object.keys(coinInfo).length === 0 ) {
+
+    return res.status(400).json({error: { Coin : "그런 코인은 존재하지 않습니다." }})
+  
+  } else {
+
+
+    //이 거래소에서 거래할 수 있는 코인인지 확인
+
+
+    const keys = await Coin.find({active: 1})
+    let allCoins = []
+    for (let i=0; i<=Object.values(keys).length-1; i++){
+      allCoins.push(Object.values(keys)[i].name)
+    }
+
+
+    //Coin Model에 포함되지 않는 경우 거래할 수 없음
+
+
+    if( await allCoins.includes(`${coinName}`) === false ) {
+    return res.status(400).json({error: { Buy : "이 거래소는 스캠코인을 취급하지 않습니다." }})
+    } else {
+
+      // 거래 가능한 코인인 경우
+
+
+      const price = await coinInfo[coinName]['usd']
+      
+
+      //코인이 부족하면 팔 수 없음
+      const getCoin = await Coin.findOne({name: coinName})
+      const coinFullName = getCoin.name
+
+    if(Number(myAssets.quantity[coinFullName]) <= quantity){
+
+    return res.status(400).json({ errors: { Assets: "Not enough Coin" } });    
+
+    } else {
+
+      //코인이 충분하면 판매 후 계좌에 저장
+
+      async function coinSell() {
+        const getCoin = await Coin.findOne({name: coinName})
+        const coinFullName = getCoin.name
+        const USD = await myAssets.quantity['usd'] + price * quantity
+        myAssets.quantity['usd'] = USD
+        myAssets.quantity[coinFullName] -= quantity
+        await myAssets.markModified('quantity');
+        await console.log(myAssets.quantity)
+        await myAssets.save(); 
+      }
+      
+      await coinSell()
+
+      const result = await {
         "price": price,
         "quantity": quantity
       }
-
-     return res.send(result)
+      return res.send(result)
     }
-    })
+    
+    }
+  }
+}
+} else if{
+  //전량판매 
+  if(await Object.keys(req.body)[0] === 'all' && Object.value(req.body)[0] === 'true') {
+
+
+  }
+
+
+
+
+
+
+
+
+}
+
+
+})
+
+
+
+
 
 
 
 
 app.get("/assets", authentication, async(req, res) => {
   const assets = await Assets.findOne({user: req.user});
-  const coinNum = Object.keys(assets).length
-  res.send(assets);
+  let assetsWithoutZero = {}
+
+  for(let i =0; i <= Object.keys(assets.quantity).length-1; i++){
+    if(assets.quantity[Object.keys(assets.quantity)[i]] !== 0) {
+      assetsWithoutZero[Object.keys(assets.quantity)[i]] = Object.values(assets.quantity)[i]
+  }
+}
+  res.send(assetsWithoutZero);
 })
 
 
