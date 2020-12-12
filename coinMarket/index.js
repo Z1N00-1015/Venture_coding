@@ -231,8 +231,8 @@ app.get(`/coins/:id`, async(req, res) => {
         
 
         //돈이 부족하면 살 수 없음
-      if(myAssets.quantity['usd'] <= price * quantity){
-      return res.status(400).json({ errors: { Assets: "Not enough Money" } });       
+      if(myAssets.quantity['usd'] <= price * quantity || quantity <= 0){
+      return res.status(400).json({ errors: { Assets: "Bad Request" } });       
       } else {
 
         //돈이 충분하면 구입 후 계좌에 저장
@@ -267,117 +267,11 @@ app.get(`/coins/:id`, async(req, res) => {
 app.post(`/coins/:id/sell`, authentication, async(req, res) => {
   //서순 : 존재하는 코인인지 확인 -> 거래가능한 코인인지 확인 -> 요청확인 -> 잔고 확인 -> 거래
 
-  //이용하는 변수
 
-  let { quantity } = await req.body
-  quantity = await parseFloat(quantity)
-  quantity = await quantity.toFixed(3)
-  quantity = await Number(quantity)
-  const coinName = await req.params.id
-  const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinName}&vs_currencies=usd`)
-  const coinInfo = await response.json()
-  console.log(coinInfo)
-  let price =0
-  let coinFullName = []
-  if (await Object.keys(coinInfo).length !== 0) {
-    const price = await coinInfo[coinName]['usd'] 
-    const coinFullName = getCoin.name
-  }
+  //지갑을 찾음
   const myAssets = await Assets.findOne({user: req.user});
-  const keys = await Coin.find({active: 1})
-  let allCoins = []
-    for (let i=0; i<=Object.values(keys).length-1; i++){
-      allCoins.push(Object.values(keys)[i].name)
-    }
-  const getCoin = await Coin.findOne({name: coinName})
-  const USD = await myAssets.quantity['usd'] + price * quantity
-
-
-
-  //존재하는 코인인지 확인
-  async function validCoin() {
-    if(await Object.keys(coinInfo).length === 0 ) {
-    return res.status(400).json({error: { Coin : "그런 코인은 존재하지 않습니다." }})  
-    }}
-
-
-
-  //코인 이름 및 가격 확인
-
-
-  //이 거래소에서 거래할 수 있는 코인인지 확인
-
-  async function canTrade() {
-    if( await allCoins.includes(`${coinName}`) === false ) {
-    return res.status(400).json({error: { Buy : "이 거래소는 스캠코인을 취급하지 않습니다." }})
-    }
-}
-
-
-
-    //코인이 부족하면 팔 수 없음
-    async function canNotSell() {
-    if(Number(myAssets.quantity[coinFullName]) <= quantity){
-    return res.status(400).json({ errors: { Assets: "Not enough Coin" } });    
-      }
-    }
-
-
-   //코인이 충분하면 판매 후 계좌에 저장
-
-    async function sellCoin() {
-    myAssets.quantity['usd'] = USD
-    myAssets.quantity[coinFullName] -= quantity
-    await myAssets.markModified('quantity');
-    await console.log(myAssets.quantity)
-    await myAssets.save(); 
-  }
-
-
-
-
-  //거래 요청확인
-  
-  async function checkRequest() {
-    if (await Object.keys(req.body).includes('quantity')) {
-      let { quantity } = await req.body
-      quantity = await parseFloat(quantity)
-      quantity = await quantity.toFixed(3)
-      quantity = await Number(quantity)
-
-
-
-      await sellCoin()
-
-    } else if (await Object.keys(req.body).includes('all')){
-      if (await Object.values(req.body).includes('true')) {
-        await sellAll()
-      }
-    } else {
-      return res.status(400).json({error: { Request: "Request must be Number or All" } } )
-    }
-  }
-
-//수정본
-
-await validCoin()
-await canTrade()
-await checkCoin()
-await checkWallet()
-await canNotSell()
-await checkRequest()
-
-
-
-
-
-/// 밑으로 원본
-
-/*
-
 
   //수량 확인
-
   let { quantity } = await req.body
   quantity = await parseFloat(quantity)
   quantity = await quantity.toFixed(3)
@@ -437,13 +331,17 @@ await checkRequest()
       //코인이 부족하면 팔 수 없음
       const getCoin = await Coin.findOne({name: coinName})
       const coinFullName = getCoin.name
+      console.log(coinFullName)
 
-    if(Number(myAssets.quantity[coinFullName]) <= quantity){
+    if(Number(myAssets.quantity[coinFullName]) < quantity){
+      console.log(myAssets.quantity)
+      console.log(Number(myAssets.quantity[coinFullName]))
+      console.log(quantity)
 
-    return res.status(400).json({ errors: { Assets: "Not enough Coin" } });    
+    return res.status(400).json({ errors: { Assets: "Bad Request" } });    
 
     } else {
-
+     
       //코인이 충분하면 판매 후 계좌에 저장
 
       async function coinSell() {
@@ -469,23 +367,7 @@ await checkRequest()
     }
   }
 }
-} else if{
-  //전량판매 
-  if(await Object.keys(req.body)[0] === 'all' && Object.value(req.body)[0] === 'true') {
-
-
-  }
-
-
-
-
-
-
-
-
-}
-*/
-
+} 
 })
 
 
